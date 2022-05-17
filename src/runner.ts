@@ -1,7 +1,7 @@
 import { PrintHelp, Versioned } from './helpdoc';
 import { ParseContext, ParsingResult, Register } from './argparser';
 import { tokenize } from './newparser/tokenizer';
-import { parse } from './newparser/parser';
+import { AstNode, parse as doParse } from './newparser/parser';
 import { errorBox } from './errorBox';
 import { err, ok, Result, isErr } from './Result';
 import { Exit } from './effects';
@@ -38,22 +38,8 @@ export async function runSafely<R extends Runner<any, any>>(
   ap: R,
   strings: string[]
 ): Promise<Result<Exit, Into<R>>> {
-  const longFlagKeys = new Set<string>();
-  const shortFlagKeys = new Set<string>();
-  const longOptionKeys = new Set<string>();
-  const shortOptionKeys = new Set<string>();
   const hotPath: string[] = [];
-  const registerContext = {
-    forceFlagShortNames: shortFlagKeys,
-    forceFlagLongNames: longFlagKeys,
-    forceOptionShortNames: shortOptionKeys,
-    forceOptionLongNames: longOptionKeys,
-  };
-
-  ap.register(registerContext);
-
-  const tokens = tokenize(strings);
-  const nodes = parse(tokens, registerContext);
+  const nodes = await parse(ap, strings)
 
   try {
     const result = await ap.run({ nodes, visitedNodes: new Set(), hotPath });
@@ -88,4 +74,28 @@ export async function dryRun<R extends Runner<any, any>>(
   } else {
     return result;
   }
+}
+
+/**
+ * Parse the command as if to run it, but only return the parse result and don't run the command.
+ */
+ export async function parse<R extends Runner<any, any>>(
+  ap: R,
+  strings: string[]
+): Promise<AstNode[]> {
+  const longFlagKeys = new Set<string>();
+  const shortFlagKeys = new Set<string>();
+  const longOptionKeys = new Set<string>();
+  const shortOptionKeys = new Set<string>();
+  const registerContext = {
+    forceFlagShortNames: shortFlagKeys,
+    forceFlagLongNames: longFlagKeys,
+    forceOptionShortNames: shortOptionKeys,
+    forceOptionLongNames: longOptionKeys,
+  };
+
+  ap.register(registerContext);
+
+  const tokens = tokenize(strings);
+  return doParse(tokens, registerContext);
 }

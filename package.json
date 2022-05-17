@@ -1,5 +1,5 @@
 {
-  "name": "@levdub/cmd-ts",
+  "name": "cmd-ts",
   "version": "0.10.1",
   "homepage": "https://cmd-ts.now.sh",
   "license": "MIT",

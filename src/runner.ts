@@ -1,5 +1,5 @@
 import { PrintHelp, Versioned } from './helpdoc';
-import { ParseContext, ParsingResult, Register } from './argparser';
+import { ArgParser, ParseContext, ParsingResult, Register } from './argparser';
 import { tokenize } from './newparser/tokenizer';
 import { AstNode, parse as doParse } from './newparser/parser';
 import { errorBox } from './errorBox';
@@ -11,7 +11,8 @@ export type Handling<Values, Result> = { handler: (values: Values) => Result };
 export type Runner<HandlerArgs, HandlerResult> = PrintHelp &
   Partial<Versioned> &
   Register &
-  Handling<HandlerArgs, HandlerResult> & {
+  Handling<HandlerArgs, HandlerResult> &
+  ArgParser<HandlerArgs> & {
     run(context: ParseContext): Promise<ParsingResult<HandlerResult>>;
   };
 
@@ -39,7 +40,7 @@ export async function runSafely<R extends Runner<any, any>>(
   strings: string[]
 ): Promise<Result<Exit, Into<R>>> {
   const hotPath: string[] = [];
-  const nodes = await parse(ap, strings)
+  const nodes = parseCommon(ap, strings)
 
   try {
     const result = await ap.run({ nodes, visitedNodes: new Set(), hotPath });
@@ -76,13 +77,10 @@ export async function dryRun<R extends Runner<any, any>>(
   }
 }
 
-/**
- * Parse the command as if to run it, but only return the parse result and don't run the command.
- */
- export async function parse<R extends Runner<any, any>>(
+function parseCommon<R extends Runner<any, any>>(
   ap: R,
   strings: string[]
-): Promise<AstNode[]> {
+): AstNode[] {
   const longFlagKeys = new Set<string>();
   const shortFlagKeys = new Set<string>();
   const longOptionKeys = new Set<string>();
@@ -98,4 +96,17 @@ export async function dryRun<R extends Runner<any, any>>(
 
   const tokens = tokenize(strings);
   return doParse(tokens, registerContext);
+}
+
+
+/**
+ * Parse the command as if to run it, but only return the parse result and don't run the command.
+ */
+ export function parse<R extends Runner<any, any>>(
+  ap: R,
+  strings: string[]
+): Promise<ParsingResult<any>> {
+  const hotPath: string[] = [];
+  const nodes = parseCommon(ap, strings);
+  return ap.parse({ nodes, visitedNodes: new Set(), hotPath })
 }

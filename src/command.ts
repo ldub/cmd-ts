@@ -39,6 +39,10 @@ type Output<Args extends ArgTypes> = {
   [key in keyof Args]: ParsingInto<Args[key]>;
 };
 
+export type Parser<Arguments extends ArgTypes> = {
+  parse(context: ParseContext): Promise<ParsingResult<Output<Arguments>>>
+};
+
 /**
  * A command line utility.
  *
